@@ -1,5 +1,10 @@
 package pythongen;
 
+
+import mindustry.Vars;
+import arc.struct.ObjectMap;
+import arc.func.Prov;
+
 import mindustry.net.Packet;
 import mindustry.net.Packets;
 import mindustry.gen.*; // Where auto-generated packets usually live
@@ -30,9 +35,31 @@ public class PythonPacketGenerator {
             writer.println("from typing import Any");
             writer.println("from mindustry_client import Packet, DataBuffer\n");
 
-            // In modern Mindustry, 'Packets.all' holds the registered packets in exact ID order.
-            // (If the exact array name differs in your specific version, point it to the Net registry array)
-            Class<?>[] registeredPackets = Packets.all; 
+            // Reflectively access Net.serializer.idToProv (replacement for deprecated Packets.all)
+            Class<?>[] registeredPackets;
+            try {
+                Field netField = Vars.class.getField("net");
+                Object net = netField.get(null);
+                Field serializerField = net.getClass().getDeclaredField("serializer");
+                serializerField.setAccessible(true);
+                Object serializer = serializerField.get(net);
+                Field mapField = serializer.getClass().getDeclaredField("idToProv");
+                mapField.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                ObjectMap<Integer, Prov<? extends Packet>> idToProv =
+                        (ObjectMap<Integer, Prov<? extends Packet>>) mapField.get(serializer);
+                registeredPackets = new Class<?>[idToProv.size];
+                idToProv.each((id,prov) -> {
+                    // int id = entry.key;
+                    // Prov<? extends Packet> prov = entry.value;
+                    if (prov != null && prov.get() != null) {
+                        registeredPackets[id] = prov.get().getClass();
+                    }
+                });
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to reflect Net.serializer packet registry", e);
+            }
+
 
             // Arc network internal packets usually take IDs 0-9. Mindustry packets start after.
             // We can calculate the exact ID by checking how Arc registers them, but usually 
