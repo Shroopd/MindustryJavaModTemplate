@@ -6,8 +6,6 @@ import arc.struct.ObjectMap;
 import arc.func.Prov;
 
 import mindustry.net.Packet;
-import mindustry.net.Packets;
-import mindustry.gen.*; // Where auto-generated packets usually live
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.io.PrintWriter;
@@ -36,7 +34,7 @@ public class PythonPacketGenerator {
             writer.println("from mindustry_client import Packet, DataBuffer\n");
 
             // Reflectively access Net.serializer.idToProv (replacement for deprecated Packets.all)
-            Class<?>[] registeredPackets;
+            ObjectMap<Integer, Prov<? extends Packet>> registeredPackets;
             try {
                 Field netField = Vars.class.getField("net");
                 Object net = netField.get(null);
@@ -48,29 +46,22 @@ public class PythonPacketGenerator {
                 @SuppressWarnings("unchecked")
                 ObjectMap<Integer, Prov<? extends Packet>> idToProv =
                         (ObjectMap<Integer, Prov<? extends Packet>>) mapField.get(serializer);
-                registeredPackets = new Class<?>[idToProv.size];
-                idToProv.each((id,prov) -> {
-                    // int id = entry.key;
-                    // Prov<? extends Packet> prov = entry.value;
-                    if (prov != null && prov.get() != null) {
-                        registeredPackets[id] = prov.get().getClass();
-                    }
-                });
+                registeredPackets = idToProv;
             } catch (Exception e) {
                 throw new RuntimeException("Failed to reflect Net.serializer packet registry", e);
             }
 
 
-            // Arc network internal packets usually take IDs 0-9. Mindustry packets start after.
-            // We can calculate the exact ID by checking how Arc registers them, but usually 
-            // the index in Packets.all + the Arc offset gives the exact network ID.
-            int arcOffset = 10; 
 
-            for (int i = 0; i < registeredPackets.length; i++) {
-                Class<?> clazz = registeredPackets[i];
+            // for (int i = 0; i < registeredPackets.length; i++) {
+            for (ObjectMap.Entry<Integer,Prov<? extends Packet>> entry : registeredPackets) {
+
+                int packetId = entry.key;
+                Class<?> clazz = entry.value.get().getClass();
+
                 if (clazz == null || !Packet.class.isAssignableFrom(clazz)) continue;
+                
 
-                int packetId = i + arcOffset;
                 String className = clazz.getSimpleName();
 
                 writer.println("class " + className + "(Packet):");
