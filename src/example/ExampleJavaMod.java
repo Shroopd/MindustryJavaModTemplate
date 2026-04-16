@@ -1,10 +1,10 @@
 package example;
 
-import arc.*;
-import arc.util.*;
-import mindustry.game.EventType.*;
+// import arc.*;
+// import arc.util.*;
+// import mindustry.game.EventType.*;
 import mindustry.mod.*;
-import mindustry.ui.dialogs.*;
+// import mindustry.ui.dialogs.*;
 import pythongen.PythonPacketGenerator;
 
 public class ExampleJavaMod extends Mod{
